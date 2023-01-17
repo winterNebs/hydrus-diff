@@ -3,34 +3,68 @@ import requests
 import cv2
 import numpy as np
 import urllib.parse
+from enum import Enum
+from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkRequest
+from PyQt6.QtCore import QUrl
+
+
+class RequestType(Enum):
+    PRINT = 0  # Just care about result
+    RANDOM_POTENTIAL = 1  # Return hashs
 
 
 class HydrusAPI:
     def __init__(self, URL, KEY):
+
         self.CLIENT_URL = URL
         self.API_KEY = KEY
         self.headers = {"Hydrus-Client-API-Access-Key": self.API_KEY}
+        self.nam = QNetworkAccessManager()
 
-    def get_url(self, url):
-        return requests.get(self.CLIENT_URL + url, headers=self.headers)
-
-    def post_url(self, url, body):
-        return requests.post(
-            self.CLIENT_URL + url, headers=self.headers, json=body
+    def get_url(self, url, callback):
+        url = QUrl(self.CLIENT_URL + url)
+        request = QNetworkRequest(url)
+        request.setRawHeader(
+            b"Hydrus-Client-API-Access-Key", bytes(self.API_KEY, "utf-8")
         )
+        reply = self.nam.get(request)
+        reply.finished.connect(lambda: callback(reply))
+
+        # return requests.get(self.CLIENT_URL + url, headers=self.headers)
+
+    def post_url(self, url, body, callback):
+        url = QUrl(self.CLIENT_URL + url)
+        request = QNetworkRequest(url)
+        request.setRawHeader(
+            b"Hydrus-Client-API-Access-Key", bytes(self.API_KEY, "utf-8")
+        )
+        reply = self.nam.post(request, body)
+        reply.finished.connect(lambda: callback(reply))
+        # return requests.post(
+        #    self.CLIENT_URL + url, headers=self.headers, json=body
+        # )
 
     def get_file(self, hash):
         return self.get_url("/get_files/file?hash=" + hash)
 
     def get_random_potentials(self):
+        # Art
+        # 6c6f63616c2066696c6573
         hydrus_images = []
-        tags = ["system:num file relationships > 5 potential duplicates"]
+        tags = [
+            # "system:num file relationships > 5 potential duplicates",
+            "system:file service is currently in art",
+        ]
         encoded = urllib.parse.quote(json.dumps(tags))
-        images = self.get_url(
+        print(encoded)
+        res = self.get_url(
             "/manage_file_relationships/get_random_potentials?"
             + "tags_1="
             + encoded
-        ).json()["random_potential_duplicate_hashes"]
+            + "&search_type=1"
+        )
+        print(res.text)
+        images = res.json()["random_potential_duplicate_hashes"]
         for img in images:
             content = self.get_file(img)
             hydrus_images.append(HydrusImage(img, content.content))
@@ -44,7 +78,7 @@ class HydrusAPI:
         self.set_relationship_all(3, hashes, True, False, False)
 
     def set_false(self, hashes):
-        self.set_relationship(1, hashes, True, False, False)
+        self.set_relationship_all(1, hashes, True, False, False)
 
     def set_relationship(
         self, relation, best_hash, other_hashes, merge, delete_a, delete_b
