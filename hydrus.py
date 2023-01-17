@@ -5,6 +5,18 @@ import numpy as np
 import urllib.parse
 
 
+class HydrusImage:
+    def __init__(self, hash, data):
+        self.hash = hash
+        self.data = data
+        self.size = sizeof_fmt(len(data))
+
+        nparr1 = np.frombuffer(self.data, np.uint8)
+        self.img = cv2.imdecode(nparr1, cv2.IMREAD_COLOR)
+        self.height = self.img.shape[0]
+        self.width = self.img.shape[1]
+
+
 class HydrusAPI:
     def __init__(self, URL, KEY):
         self.CLIENT_URL = URL
@@ -19,8 +31,8 @@ class HydrusAPI:
             self.CLIENT_URL + url, headers=self.headers, json=body
         )
 
-    def get_file(self, hash, callback):
-        return self.get_url("/get_files/file?hash=" + hash, callback)
+    def get_file(self, hash):
+        return self.get_url("/get_files/file?hash=" + hash)
 
     def get_random_potentials(self):
         hydrus_images = []
@@ -34,6 +46,7 @@ class HydrusAPI:
         for img in images:
             content = self.get_file(img)
             hydrus_images.append(HydrusImage(img, content.content))
+        return hydrus_images
 
     def set_best(self, best_hash, other_hashes):
         self.set_relationship(4, best_hash, other_hashes, True, False, True)
@@ -42,7 +55,7 @@ class HydrusAPI:
         self.set_relationship_all(3, hashes, True, False, False)
 
     def set_false(self, hashes):
-        self.set_relationship(1, hashes, True, False, False)
+        self.set_relationship_all(1, hashes, True, False, False)
 
     def set_relationship(
         self, relation, best_hash, other_hashes, merge, delete_a, delete_b

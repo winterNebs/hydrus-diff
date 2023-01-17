@@ -6,6 +6,7 @@ from PyQt6.QtWidgets import (
     QListView,
     QListWidget,
     QListWidgetItem,
+    QMenu,
     QSizePolicy,
     QWidget,
     QPushButton,
@@ -15,7 +16,7 @@ from PyQt6.QtWidgets import (
     QScrollArea,
 )
 from PyQt6.QtGui import QColor, QIcon, QImage, QPixmap, QPalette
-from PyQt6.QtCore import QSize, Qt, pyqtSignal
+from PyQt6.QtCore import QPoint, QSize, Qt, pyqtSignal
 import cv2 as cv2
 import numpy as np
 from hydrus import HydrusAPI, HydrusImage
@@ -71,7 +72,7 @@ class Main(QWidget):
         alts.clicked.connect(self.set_alts)
         self.controls.addWidget(alts)
 
-        false = QPushButton("Set all as false")
+        false = QPushButton("Set all as false positives")
         false.clicked.connect(self.set_false)
         self.controls.addWidget(false)
 
@@ -81,18 +82,39 @@ class Main(QWidget):
 
         self.preview = QLabel()
         self.controls.addWidget(self.preview)
-
         # --- Control Panel
 
         # --- Image Viewer
         self.scroll = QImageDisplayer()
-
         # self.scroll.currentItemChanged.connect(self.previewItem)
         self.scroll.itemSelectionChanged.connect(self.previewItem)
-        self.layout.addWidget(self.scroll, 50)
+        self.scroll.setContextMenuPolicy(
+            Qt.ContextMenuPolicy.CustomContextMenu
+        )
+        self.scroll.customContextMenuRequested.connect(self.right_clicked)
+        self.scroll.showMaximized()
+        # self.layout.addWidget(self.scroll, 50)
         # --- Image Viewer
 
         self.reset()
+
+    def right_clicked(self, pos):
+        self.context_menu = QMenu()
+        delete_me = self.context_menu.addAction("Delete")
+        delete_me.triggered.connect(self.context_delete)
+        omit_me = self.context_menu.addAction("Omit")
+        omit_me.triggered.connect(self.context_omit)
+        parent_pos = self.scroll.mapToGlobal(QPoint(0, 0))
+        self.context_menu.move(parent_pos + pos)
+        self.context_menu.show()
+
+    def context_delete(self):
+        hash = self.scroll.remove_current()
+        if hash is not None:
+            self.hydrus.delete_all([hash])
+
+    def context_omit(self):
+        self.scroll.remove_current()
 
     def previewItem(self):
         item = self.scroll.get_current_item()
@@ -189,6 +211,24 @@ class QImageDisplayer(QListWidget):
             item = items[0]
             return item.data(Qt.ItemDataRole.UserRole)
         return None
+
+    def remove_current(self):
+        print(self.get_all_hashes())
+        items = self.selectedItems()
+        if len(items) == 1:
+            item = items[0]
+            self.takeItem(self.row(item))
+            hash = item.data(Qt.ItemDataRole.UserRole).hash
+            print("removed item: ", hash)
+            print(self.get_all_hashes())
+
+            if hash == "":
+                return None
+            else:
+                return hash
+        else:
+            print("nothing selected")
+            return None
 
     def get_all_hashes(self):
         return [
