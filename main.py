@@ -6,7 +6,6 @@ from PyQt6.QtWidgets import (
     QListView,
     QListWidget,
     QListWidgetItem,
-    QMenu,
     QSizePolicy,
     QWidget,
     QPushButton,
@@ -16,7 +15,7 @@ from PyQt6.QtWidgets import (
     QScrollArea,
 )
 from PyQt6.QtGui import QColor, QIcon, QImage, QPixmap, QPalette
-from PyQt6.QtCore import QPoint, QSize, Qt
+from PyQt6.QtCore import QSize, Qt, pyqtSignal
 import cv2 as cv2
 import numpy as np
 from hydrus import HydrusAPI, HydrusImage
@@ -27,26 +26,30 @@ API_KEY = sys.argv[1]
 
 
 class Main(QWidget):
-    def test(self, qresult):
-        print("it worky!", qresult)
-
     def __init__(self):
         super().__init__()
         self.hydrus = HydrusAPI(CLIENT_URL, API_KEY)
 
-        self.hydrus.get_url("/verify_access_key", self.test)
-        self.hydrus.get_random_potentials(self.test)
-        # print(self.hydrus.get_url("/get_services").text)
+        print(self.hydrus.get_url("/verify_access_key").text)
+        print(self.hydrus.get_url("/get_services").text)
 
         # TODOs:
-        # -> Select image to subtract (checkbox toggle?)
-        # -> multithreading
-        #   -> Preload images
-        #   -> Do not wait on response
-        # -> undo
+        # 1. image sorting + hydrus relationship setting
+        #   -> ie show best first and bulk do multiple images
+        # 2. image comparison
+        #   -> subtraction
+        #   -> idk otherstuff
+        # 3. Image viewer tools. Zoom, swap
+        # Some sort of image preview
+        #
+        # Option to set image as comparioson thingy
+        #   -> turns all images into subtractions
+
+        # 2 checkbox to turn images to subtractions
+
+        # Why only getting a few images rather than a lot
 
         self.showMaximized()
-        """ 
         self.layout = QHBoxLayout()
         self.setLayout(self.layout)
 
@@ -68,7 +71,7 @@ class Main(QWidget):
         alts.clicked.connect(self.set_alts)
         self.controls.addWidget(alts)
 
-        false = QPushButton("Set all as false positives")
+        false = QPushButton("Set all as false")
         false.clicked.connect(self.set_false)
         self.controls.addWidget(false)
 
@@ -86,33 +89,10 @@ class Main(QWidget):
 
         # self.scroll.currentItemChanged.connect(self.previewItem)
         self.scroll.itemSelectionChanged.connect(self.previewItem)
-        self.scroll.setContextMenuPolicy(
-            Qt.ContextMenuPolicy.CustomContextMenu
-        )
-        self.scroll.customContextMenuRequested.connect(self.right_clicked)
-        self.scroll.showMaximized()
-        # self.layout.addWidget(self.scroll, 50)
+        self.layout.addWidget(self.scroll, 50)
         # --- Image Viewer
 
-        self.reset()"""
-
-    def right_clicked(self, pos):
-        self.context_menu = QMenu()
-        delete_me = self.context_menu.addAction("Delete")
-        delete_me.triggered.connect(self.context_delete)
-        omit_me = self.context_menu.addAction("Omit")
-        omit_me.triggered.connect(self.context_omit)
-        parent_pos = self.scroll.mapToGlobal(QPoint(0, 0))
-        self.context_menu.move(parent_pos + pos)
-        self.context_menu.show()
-
-    def context_delete(self):
-        hash = self.scroll.remove_current()
-        if hash is not None:
-            self.hydrus.delete_all([hash])
-
-    def context_omit(self):
-        self.scroll.remove_current()
+        self.reset()
 
     def previewItem(self):
         item = self.scroll.get_current_item()
@@ -209,24 +189,6 @@ class QImageDisplayer(QListWidget):
             item = items[0]
             return item.data(Qt.ItemDataRole.UserRole)
         return None
-
-    def remove_current(self):
-        print(self.get_all_hashes())
-        items = self.selectedItems()
-        if len(items) == 1:
-            item = items[0]
-            self.takeItem(self.row(item))
-            hash = item.data(Qt.ItemDataRole.UserRole).hash
-            print("removed item: ", hash)
-            print(self.get_all_hashes())
-
-            if hash == "":
-                return None
-            else:
-                return hash
-        else:
-            print("nothing selected")
-            return None
 
     def get_all_hashes(self):
         return [
