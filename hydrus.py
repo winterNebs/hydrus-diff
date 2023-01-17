@@ -5,29 +5,7 @@ import numpy as np
 import urllib.parse
 
 
-class RandomPotentials:
-    images: List[HydrusImage]
-    total: int
-    callback: Callable[[List[HydrusImage]], None]
-
-    def __init__(
-        self, total: int, callback: Callable[[List[HydrusImage]], None]
-    ):
-        self.total = total
-        self.images = []
-        self.callback = callback
-
-    def done_callback(self, hash: str, data: QByteArray):
-        img = HydrusImage(hash, data)
-
-        self.images.append(img)
-        if len(self.images) == self.total:
-            self.callback(self.images)
-
-
 class HydrusAPI:
-    nam: QNetworkAccessManager
-
     def __init__(self, URL, KEY):
         self.CLIENT_URL = URL
         self.API_KEY = KEY
