@@ -34,7 +34,8 @@ class Main(QWidget):
         super().__init__()
         self.hydrus = HydrusAPI(CLIENT_URL, API_KEY)
 
-        print(self.hydrus.get_url("/verify_access_key", self.test))
+        self.hydrus.get_url("/verify_access_key", self.test)
+        self.hydrus.get_random_potentials(self.test)
         # print(self.hydrus.get_url("/get_services").text)
 
         # TODOs:
