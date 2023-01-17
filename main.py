@@ -20,6 +20,7 @@ from PyQt6.QtCore import QPoint, QSize, Qt, pyqtSignal
 import cv2 as cv2
 import numpy as np
 from hydrus import HydrusAPI, HydrusImage
+from qhydrus import RandomImageBuffer
 import json
 
 CLIENT_URL = "http://localhost:45869"
@@ -31,8 +32,8 @@ class Main(QWidget):
         super().__init__()
         self.hydrus = HydrusAPI(CLIENT_URL, API_KEY)
 
-        print(self.hydrus.get_url("/verify_access_key").text)
-        print(self.hydrus.get_url("/get_services").text)
+        # print(self.hydrus.get_url("/verify_access_key").text)
+        # print(self.hydrus.get_url("/get_services").text)
 
         # TODOs:
         # 1. image sorting + hydrus relationship setting
@@ -96,6 +97,8 @@ class Main(QWidget):
         # self.layout.addWidget(self.scroll, 50)
         # --- Image Viewer
 
+        self.buffer = RandomImageBuffer(self.hydrus)
+        self.buffer.feed_me.connect(self.load_images)
         self.reset()
 
     def right_clicked(self, pos):
@@ -132,8 +135,10 @@ class Main(QWidget):
 
     def reset(self):
         self.scroll.clear()
-        self.load_images()
         self.preview.clear()
+        self.buffer.get_images()
+
+        # self.load_images()
 
     def set_best(self):
         # grab selected
@@ -165,9 +170,9 @@ class Main(QWidget):
         self.hydrus.delete_all(hashes)
         self.reset()
 
-    def load_images(self):
-        images = self.hydrus.get_random_potentials()
+    def load_images(self, images):
         images.sort(key=lambda x: len(x.data), reverse=True)
+        """
         multiplier, grey, aspect = subtract_image(images[0], images[1])
         if multiplier:
 
@@ -176,6 +181,7 @@ class Main(QWidget):
                 + str(multiplier)
             )
             images.append(HydrusImage("", cv2.imencode(".png", grey)[1]))
+        """
 
         for i, img in enumerate(images):
             self.scroll.addImage(img)
