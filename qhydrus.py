@@ -15,7 +15,7 @@ class RandomPotentialThread(QThread):
     def run(self):
         print("getting potential images")
         images = self.hydrus.get_random_potentials()
-        print("done getting potential images")
+        print("done getting potential images", images)
         self.images.emit(images)
         self.deleteLater()
 
@@ -24,7 +24,7 @@ class RandomImageBuffer(QObject):
     # use a queue XD
 
     __buffer = []
-    BUFFER_SIZE = 10
+    BUFFER_SIZE = 5
     no_more = pyqtSignal()
     images_ready = pyqtSignal()
     feed_me = pyqtSignal(list)

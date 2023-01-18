@@ -16,6 +16,9 @@ class HydrusImage:
         self.height = self.img.shape[0]
         self.width = self.img.shape[1]
 
+    def __repr__(self):
+        return f"<Hydrus Image hash:{self.hash}>"
+
 
 class HydrusAPI:
     def __init__(self, URL, KEY):
@@ -36,25 +39,35 @@ class HydrusAPI:
 
     def get_random_potentials(self):
         hydrus_images = []
-        tags = ["system:num file relationships > 5 potential duplicates"]
+        tags = [
+            # "system:file service is currently in art",
+            "system:file service is currently in human",
+            "system:file service is not currently in trash",
+            "system:num file relationships > 3 potential duplicates",
+        ]
         encoded = urllib.parse.quote(json.dumps(tags))
-        images = self.get_url(
+        res = self.get_url(
             "/manage_file_relationships/get_random_potentials?"
-            + "tags_1="
+            + "potentials_search_type=1&tags_1="
             + encoded
-        ).json()["random_potential_duplicate_hashes"]
+        )
+        print(res.text)
+        images = res.json()["random_potential_duplicate_hashes"]
         for img in images:
             content = self.get_file(img)
             hydrus_images.append(HydrusImage(img, content.content))
         return hydrus_images
 
     def set_best(self, best_hash, other_hashes):
+        print("setting best", best_hash, other_hashes)
         self.set_relationship(4, best_hash, other_hashes, True, False, True)
 
     def set_alts(self, hashes):
+        print("setting alt", hashes)
         self.set_relationship_all(3, hashes, True, False, False)
 
     def set_false(self, hashes):
+        print("setting false", hashes)
         self.set_relationship_all(1, hashes, True, False, False)
 
     def set_relationship(
@@ -93,6 +106,7 @@ class HydrusAPI:
         print(res.status_code, res.text)
 
     def delete_all(self, hashes):
+        print("deleting all", hashes)
         res = self.post_url("/add_files/delete_files", {"hashes": hashes})
         print(res.status_code, res.text)
 

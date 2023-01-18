@@ -1,4 +1,5 @@
 import sys
+import os
 from PyQt6.QtWidgets import (
     QApplication,
     QLabel,
@@ -8,6 +9,7 @@ from PyQt6.QtWidgets import (
     QListWidgetItem,
     QMenu,
     QSizePolicy,
+    QSpinBox,
     QWidget,
     QPushButton,
     QMainWindow,
@@ -15,8 +17,8 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QScrollArea,
 )
-from PyQt6.QtGui import QColor, QIcon, QImage, QPixmap, QPalette
-from PyQt6.QtCore import QPoint, QSize, Qt, pyqtSignal
+from PyQt6.QtGui import QColor, QIcon, QImage, QImageReader, QPixmap, QPalette
+from PyQt6.QtCore import QItemSelectionModel, QPoint, QSize, Qt, pyqtSignal
 import cv2 as cv2
 import numpy as np
 from hydrus import HydrusAPI, HydrusImage
@@ -81,7 +83,19 @@ class Main(QWidget):
         delete.clicked.connect(self.set_delete)
         self.controls.addWidget(delete)
 
+        self.zoom = QSpinBox()
+        self.zoom.setValue(100)
+        self.zoom.setRange(1, 1000)
+        self.zoom.setSingleStep(5)
+        self.zoom.setSuffix("%")
+        self.zoom.setPrefix("Zoom: ")
+        self.zoom.valueChanged.connect(self.previewItem)
+        self.controls.addWidget(self.zoom)
+
         self.preview = QLabel()
+        self.preview.setSizePolicy(
+            QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Ignored
+        )
         self.controls.addWidget(self.preview)
         # --- Control Panel
 
@@ -127,7 +141,7 @@ class Main(QWidget):
         pixmap.loadFromData(item.data)
         self.preview.setPixmap(
             pixmap.scaled(
-                self.preview.size(),
+                self.preview.size() * (self.zoom.value() / 100),
                 Qt.AspectRatioMode.KeepAspectRatio,
                 Qt.TransformationMode.FastTransformation,
             )
@@ -171,20 +185,23 @@ class Main(QWidget):
         self.reset()
 
     def load_images(self, images):
+        print("loaded images", images)
         images.sort(key=lambda x: len(x.data), reverse=True)
-        """
-        multiplier, grey, aspect = subtract_image(images[0], images[1])
-        if multiplier:
+        if len(images) >= 2:
+            multiplier, grey, aspect = subtract_image(images[0], images[1])
+            if multiplier:
 
-            mult_label = QLabel(
-                "Contrast Multiplier (higher means less different): "
-                + str(multiplier)
-            )
-            images.append(HydrusImage("", cv2.imencode(".png", grey)[1]))
-        """
-
+                mult_label = QLabel(
+                    "Contrast Multiplier (higher means less different): "
+                    + str(multiplier)
+                )
+                images.append(HydrusImage("", cv2.imencode(".png", grey)[1]))
         for i, img in enumerate(images):
             self.scroll.addImage(img)
+        self.scroll.selectionModel().setCurrentIndex(
+            self.scroll.model().index(0, 0),
+            QItemSelectionModel.SelectionFlag.Select,
+        )
 
 
 class QImageDisplayer(QListWidget):
@@ -283,6 +300,8 @@ def subtract_image(im1: HydrusImage, im2: HydrusImage):
     diff = cv2.subtract(img1, img2)
     grey = cv2.cvtColor(diff, cv2.COLOR_BGR2GRAY)
     _, max_val, _, _ = cv2.minMaxLoc(grey)
+    if max_val == 0:
+        max_val = 0.1
     multiplier = 255.0 / max_val
     grey = grey * multiplier
     print("Contrast boosted by: " + str(multiplier))
@@ -292,6 +311,7 @@ def subtract_image(im1: HydrusImage, im2: HydrusImage):
 
 
 if __name__ == "__main__":
+    os.environ["QT_IMAGEIO_MAXALLOC"] = "10000"
     app = QApplication([])
     main = Main()
     sys.exit(app.exec())
